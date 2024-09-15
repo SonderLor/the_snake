@@ -1,86 +1,112 @@
 import pygame
-from random import randint
+from random import choice
 
-# Цвет фона - черный:
 BOARD_BACKGROUND_COLOR = (0, 0, 0)
-
-# Цвет границы ячейки
-BORDER_COLOR = (93, 216, 228)
-
-# Цвет яблока
+BORDER_COLOR = (93, 33, 228)
 APPLE_COLOR = (255, 0, 0)
-
-# Цвет змейки
 SNAKE_COLOR = (0, 255, 0)
+ROCK_COLOR = (128, 128, 128)
+POISON_COLOR = (0, 0, 255)
 
-# Направления движения:
 UP = (0, -1)
 DOWN = (0, 1)
 LEFT = (-1, 0)
 RIGHT = (1, 0)
 
-# Скорость движения змейки:
 SPEED = 10
-
-# Константы для размеров поля и сетки:
+SPEED_INCREMENT = 1
+MIN_SPEED = 5
+MAX_SPEED = 20
 SCREEN_WIDTH, SCREEN_HEIGHT = 640, 480
 GRID_SIZE = 20
 GRID_WIDTH = SCREEN_WIDTH // GRID_SIZE
 GRID_HEIGHT = SCREEN_HEIGHT // GRID_SIZE
 
-# Настройка игрового окна:
+ALL_CELLS = set((x, y) for x in range(GRID_WIDTH) for y in range(GRID_HEIGHT))
+
+HIGH_SCORE_FILE = "high_score.txt"
+
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
-
-# Заголовок окна игрового поля:
 pygame.display.set_caption('Змейка')
-
-# Настройка времени:
 clock = pygame.time.Clock()
 
 
 class GameObject:
-    """Базовый класс для объектов игры."""
-
-    def __init__(self, position=(0, 0), body_color=(255, 255, 255)):
+    def __init__(self, position, body_color):
         self.position = position
         self.body_color = body_color
 
     def get_position(self):
-        """Возвращает текущую позицию объекта."""
         return self.position
 
+    def draw_square(self, position, color, border_color=BORDER_COLOR):
+        cords = position[0] * GRID_SIZE, position[1] * GRID_SIZE
+        rect = pygame.Rect(cords, (GRID_SIZE, GRID_SIZE))
+        pygame.draw.rect(screen, color, rect)
+        pygame.draw.rect(screen, border_color, rect, 2)
+
     def draw(self):
-        """Рисует объект на экране."""
         pass
 
 
 class Apple(GameObject):
-    """Класс, представляющий яблоко на игровом поле."""
-
     def __init__(self):
-        self.randomize_position()
         self.body_color = APPLE_COLOR
+        self.position = (0, 0)
         super().__init__(self.position, self.body_color)
 
-    def randomize_position(self):
-        """Генерирует случайную позицию для яблока."""
-        self.position = randint(0, 31), randint(0, 23)
+    def randomize_position(self, snake_positions):
+        occupied_cells = set(snake_positions)
+        free_cells = ALL_CELLS - occupied_cells
+        self.position = choice(tuple(free_cells))
 
     def draw(self):
-        """Отрисовывает яблоко на экране."""
-        cords = self.position[0] * GRID_SIZE, self.position[1] * GRID_SIZE
-        rect = pygame.Rect(cords, (GRID_SIZE, GRID_SIZE))
-        pygame.draw.rect(screen, self.body_color, rect)
-        pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
+        self.draw_square(self.position, self.body_color)
 
-    def reset(self):
-        """Сбрасывает положение яблока."""
-        self.randomize_position()
+    def erase(self, color):
+        self.draw_square(self.position, color)
+
+    def reset(self, snake_positions):
+        self.randomize_position(snake_positions)
+
+
+class Rock(GameObject):
+    def __init__(self):
+        self.body_color = ROCK_COLOR
+        self.position = (0, 0)
+        super().__init__(self.position, self.body_color)
+
+    def randomize_position(self, snake_positions):
+        occupied_cells = set(snake_positions)
+        free_cells = ALL_CELLS - occupied_cells
+        self.position = choice(tuple(free_cells))
+
+    def draw(self):
+        self.draw_square(self.position, self.body_color)
+
+    def reset(self, snake_positions):
+        self.randomize_position(snake_positions)
+
+
+class Poison(GameObject):
+    def __init__(self):
+        self.body_color = POISON_COLOR
+        self.position = (0, 0)
+        super().__init__(self.position, self.body_color)
+
+    def randomize_position(self, snake_positions):
+        occupied_cells = set(snake_positions)
+        free_cells = ALL_CELLS - occupied_cells
+        self.position = choice(tuple(free_cells))
+
+    def draw(self):
+        self.draw_square(self.position, self.body_color)
+
+    def reset(self, snake_positions):
+        self.randomize_position(snake_positions)
 
 
 class Snake(GameObject):
-    """Класс, представляющий змейку."""
-
     def __init__(self):
         self.length = None
         self.next_direction = None
@@ -92,82 +118,119 @@ class Snake(GameObject):
         super().__init__(self.positions[0], self.body_color)
 
     def get_head_position(self):
-        """Возвращает текущую позицию головы змейки."""
         return self.positions[0]
 
+    def get_positions(self):
+        return self.positions
+
     def update_direction(self):
-        """Обновляет направление движения змейки."""
         if self.next_direction:
             self.direction = self.next_direction
             self.next_direction = None
 
     def move(self):
-        """Перемещает змейку в направлении движения."""
         head = self.get_head_position()
         next_cell = (
             (head[0] + self.direction[0]) % GRID_WIDTH,
             (head[1] + self.direction[1]) % GRID_HEIGHT
         )
         if next_cell in self.positions:
+            self.die()
             self.reset()
         else:
             self.positions.insert(0, next_cell)
             self.last = self.positions.pop()
 
     def draw(self):
-        """Отрисовывает змейку на экране."""
-        for position in self.positions:
-            cords = position[0] * GRID_SIZE, position[1] * GRID_SIZE
-            rect = pygame.Rect(cords, (GRID_SIZE, GRID_SIZE))
-            pygame.draw.rect(screen, self.body_color, rect)
-            pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
+        self.draw_square(self.get_head_position(), self.body_color)
 
         if self.last:
-            cords = self.last[0] * GRID_SIZE, self.last[1] * GRID_SIZE
-            last_rect = pygame.Rect(cords, (GRID_SIZE, GRID_SIZE))
-            pygame.draw.rect(screen, BOARD_BACKGROUND_COLOR, last_rect)
+            self.draw_square(self.last, BOARD_BACKGROUND_COLOR, BOARD_BACKGROUND_COLOR)
+
+    def die(self):
+        for position in self.positions:
+            self.draw_square(position, BOARD_BACKGROUND_COLOR, BOARD_BACKGROUND_COLOR)
 
     def reset(self):
-        """Сбрасывает змейку в начальное состояние."""
         self.positions = [(GRID_WIDTH // 2, GRID_HEIGHT // 2)]
         self.direction = RIGHT
         self.next_direction = None
         self.length = 1
 
     def eat(self):
-        """Добавляет сегмент к змейке."""
         head = self.get_head_position()
         next_cell = head[0] + self.direction[0], head[1] + self.direction[1]
         self.positions.insert(0, next_cell)
 
+    def shrink(self):
+        if len(self.positions) > 1:
+            self.draw_square(self.positions.pop(), BOARD_BACKGROUND_COLOR, BOARD_BACKGROUND_COLOR)
+
 
 def handle_keys(game_object):
-    """Обрабатывает действия пользователя."""
+    direction_opposites = {
+        UP: DOWN,
+        DOWN: UP,
+        LEFT: RIGHT,
+        RIGHT: LEFT
+    }
+
+    key_to_direction = {
+        pygame.K_UP: UP,
+        pygame.K_DOWN: DOWN,
+        pygame.K_LEFT: LEFT,
+        pygame.K_RIGHT: RIGHT
+    }
+
+    global SPEED
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             raise SystemExit
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP and game_object.direction != DOWN:
-                game_object.next_direction = UP
-            elif event.key == pygame.K_DOWN and game_object.direction != UP:
-                game_object.next_direction = DOWN
-            elif event.key == pygame.K_LEFT and game_object.direction != RIGHT:
-                game_object.next_direction = LEFT
-            elif event.key == pygame.K_RIGHT and game_object.direction != LEFT:
-                game_object.next_direction = RIGHT
+            new_direction = key_to_direction.get(event.key)
+            if new_direction and new_direction != direction_opposites.get(game_object.direction):
+                game_object.next_direction = new_direction
+            elif event.key == pygame.K_q and SPEED > MIN_SPEED:
+                SPEED -= SPEED_INCREMENT
+            elif event.key == pygame.K_w and SPEED < MAX_SPEED:
+                SPEED += SPEED_INCREMENT
+            elif event.key == pygame.K_ESCAPE:
+                pygame.quit()
+                raise SystemExit
 
 
 def is_cords_equal(cords1, cords2):
-    """Сравнивает две координаты."""
     return cords1[0] == cords2[0] and cords1[1] == cords2[1]
 
 
+def load_high_score():
+    try:
+        with open(HIGH_SCORE_FILE, "r") as file:
+            return int(file.read().strip())
+    except (FileNotFoundError, ValueError):
+        return 1
+
+
+def save_high_score(score):
+    with open(HIGH_SCORE_FILE, "w") as file:
+        file.write(str(score))
+
+
 def main():
-    """Запускает главный цикл игры."""
     pygame.init()
     player_snake = Snake()
-    current_apple = Apple()
+    apples = [Apple() for _ in range(3)]
+    rocks = [Rock() for _ in range(3)]
+    poisons = [Poison() for _ in range(3)]
+    high_score = load_high_score()
+
+    for apple in apples:
+        apple.reset(player_snake.get_positions())
+    for rock in rocks:
+        rock.reset(player_snake.get_positions())
+    for poison in poisons:
+        poison.reset(player_snake.get_positions())
 
     while True:
         clock.tick(SPEED)
@@ -175,16 +238,39 @@ def main():
         player_snake.update_direction()
         player_snake.move()
 
-        screen.fill(BOARD_BACKGROUND_COLOR)
+        for apple in apples:
+            if is_cords_equal(player_snake.get_head_position(), apple.get_position()):
+                apple.erase(SNAKE_COLOR)
+                player_snake.eat()
+                apple.reset(player_snake.get_positions())
 
-        if is_cords_equal(
-                player_snake.get_head_position(), current_apple.get_position()
-        ):
-            player_snake.eat()
-            current_apple.reset()
+        for rock in rocks:
+            if is_cords_equal(player_snake.get_head_position(), rock.get_position()):
+                player_snake.die()
+                player_snake.reset()
+
+        for poison in poisons:
+            if is_cords_equal(player_snake.get_head_position(), poison.get_position()):
+                player_snake.shrink()
+                poison.reset(player_snake.get_positions())
+
+        current_score = len(player_snake.get_positions())
+        if current_score > high_score:
+            high_score = current_score
+            save_high_score(high_score)
+
+        pygame.display.set_caption(
+            f'Змейка - Рекорд: {high_score} - '
+            f'Скорость: {SPEED} - q: уменьшить, w: увеличить'
+        )
 
         player_snake.draw()
-        current_apple.draw()
+        for apple in apples:
+            apple.draw()
+        for rock in rocks:
+            rock.draw()
+        for poison in poisons:
+            poison.draw()
         pygame.display.update()
 
 
