@@ -39,27 +39,23 @@ clock = pygame.time.Clock()
 
 
 class GameObject:
-    """
-    Базовый класс для объектов игры.
-    """
+    """ Базовый класс для объектов игры. """
 
     def __init__(self, position, body_color):
         self.position = position
         self.body_color = body_color
 
     def get_position(self):
-        """Возвращает текущую позицию объекта."""
+        """ Возвращает текущую позицию объекта. """
         return self.position
 
     def draw(self):
-        """Рисует объект на экране."""
+        """ Рисует объект на экране. """
         pass
 
 
 class Apple(GameObject):
-    """
-    Класс, представляющий яблоко на игровом поле.
-    """
+    """ Класс, представляющий яблоко на игровом поле. """
 
     def __init__(self):
         self.randomize_position()
@@ -67,25 +63,23 @@ class Apple(GameObject):
         super().__init__(self.position, self.body_color)
 
     def randomize_position(self):
-        """Генерирует случайную позицию для яблока."""
+        """ Генерирует случайную позицию для яблока. """
         self.position = randint(0, 31), randint(0, 23)
 
     def draw(self):
-        """Отрисовывает яблоко на экране."""
+        """ Отрисовывает яблоко на экране. """
         cords = self.position[0] * GRID_SIZE, self.position[1] * GRID_SIZE
         rect = pygame.Rect(cords, (GRID_SIZE, GRID_SIZE))
         pygame.draw.rect(screen, self.body_color, rect)
         pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
 
     def reset(self):
-        """Сбрасывает положение яблока."""
+        """ Сбрасывает положение яблока. """
         self.randomize_position()
 
 
 class Snake(GameObject):
-    """
-    Класс, представляющий змейку.
-    """
+    """ Класс, представляющий змейку. """
 
     def __init__(self):
         self.length = None
@@ -98,17 +92,17 @@ class Snake(GameObject):
         super().__init__(self.positions[0], self.body_color)
 
     def get_head_position(self):
-        """Возвращает текущую позицию головы змейки."""
+        """ Возвращает текущую позицию головы змейки. """
         return self.positions[0]
 
     def update_direction(self):
-        """Обновляет направление движения змейки."""
+        """ Обновляет направление движения змейки. """
         if self.next_direction:
             self.direction = self.next_direction
             self.next_direction = None
 
     def move(self):
-        """Перемещает змейку в направлении движения."""
+        """ Перемещает змейку в направлении движения. """
         head = self.get_head_position()
         next_cell = (
             (head[0] + self.direction[0]) % GRID_WIDTH,
@@ -121,7 +115,7 @@ class Snake(GameObject):
             self.last = self.positions.pop()
 
     def draw(self):
-        """Отрисовывает змейку на экране."""
+        """ Отрисовывает змейку на экране. """
         for position in self.positions:
             cords = position[0] * GRID_SIZE, position[1] * GRID_SIZE
             rect = pygame.Rect(cords, (GRID_SIZE, GRID_SIZE))
@@ -134,21 +128,21 @@ class Snake(GameObject):
             pygame.draw.rect(screen, BOARD_BACKGROUND_COLOR, last_rect)
 
     def reset(self):
-        """Сбрасывает змейку в начальное состояние."""
+        """ Сбрасывает змейку в начальное состояние. """
         self.positions = [(GRID_WIDTH // 2, GRID_HEIGHT // 2)]
         self.direction = RIGHT
         self.next_direction = None
         self.length = 1
 
     def eat(self):
-        """Добавляет сегмент к змейке."""
+        """ Добавляет сегмент к змейке. """
         head = self.get_head_position()
         next_cell = head[0] + self.direction[0], head[1] + self.direction[1]
         self.positions.insert(0, next_cell)
 
 
 def handle_keys(game_object):
-    """Обрабатывает действия пользователя."""
+    """ Обрабатывает действия пользователя. """
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -165,12 +159,12 @@ def handle_keys(game_object):
 
 
 def is_cords_equal(cords1, cords2):
-    """Сравнивает две координаты."""
+    """ Сравнивает две координаты. """
     return cords1[0] == cords2[0] and cords1[1] == cords2[1]
 
 
 def main():
-    """Запускает главный цикл игры."""
+    """ Запускает главный цикл игры. """
     pygame.init()
     player_snake = Snake()
     current_apple = Apple()
@@ -183,7 +177,9 @@ def main():
 
         screen.fill(BOARD_BACKGROUND_COLOR)
 
-        if is_cords_equal(player_snake.get_head_position(), current_apple.get_position()):
+        if is_cords_equal(
+                player_snake.get_head_position(), current_apple.get_position()
+        ):
             player_snake.eat()
             current_apple.reset()
 
